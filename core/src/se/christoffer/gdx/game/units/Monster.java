@@ -40,11 +40,16 @@ public class Monster {
         if (currentHp <= 0) {
             rect.y -= 10;
             state = State.DEAD;
+            onDeath();
         }
     }
 
     public State getState() {
         return state;
+    }
+
+    public void onDeath() {
+
     }
 
 }

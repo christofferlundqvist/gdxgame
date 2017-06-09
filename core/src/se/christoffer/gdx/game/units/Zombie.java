@@ -6,7 +6,12 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+
 import se.christoffer.gdx.game.GdxGame;
+import se.christoffer.gdx.game.item.Item;
 import se.christoffer.gdx.game.player.Player;
 import se.christoffer.gdx.game.util.DamageType;
 import se.christoffer.gdx.game.util.Direction;
@@ -29,12 +34,18 @@ public class Zombie extends Monster {
     private static Texture[] attackSprites = new Texture[8];
     private static Texture[] deadSprites = new Texture[12];
 
+    private static final Map<String, Float> itemDrops = new HashMap<String, Float>();
+
     private Texture currentImage;
     private int walkTimer;
     private int attackTimer;
     private int deadTimer;
 
     private Rectangle attackHitBox;
+
+    static {
+        itemDrops.put("Coin", 50f);
+    }
 
     public Zombie(float x, float y) {
         rect = new Rectangle(x, y, WIDTH, HEIGHT);
@@ -77,6 +88,17 @@ public class Zombie extends Monster {
         deadSprites[11] = new Texture(Gdx.files.internal("zombie_male/Dead (12).png"));
 
         // currentImage = walkSprites[0];
+    }
+
+    @Override
+    public void onDeath() {
+        for (Map.Entry<String, Float> entry : itemDrops.entrySet()) {
+            if ((int) (Math.random() * 100) <= entry.getValue()) {
+                if (entry.getKey().equals("Coin")) {
+                    
+                }
+            }
+        }
     }
 
     private void updateDead() {
