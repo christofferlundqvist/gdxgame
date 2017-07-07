@@ -2,16 +2,21 @@ package se.christoffer.gdx.game.player;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Logger;
 
+import java.util.Iterator;
 import java.util.List;
 
 import se.christoffer.gdx.game.GameScreen;
 import se.christoffer.gdx.game.GdxGame;
+import se.christoffer.gdx.game.item.Coin;
+import se.christoffer.gdx.game.item.Item;
 import se.christoffer.gdx.game.units.Monster;
 import se.christoffer.gdx.game.util.DamageType;
 import se.christoffer.gdx.game.util.Direction;
+import se.christoffer.gdx.game.util.SpriteUtil;
 
 /**
  * Created by christofferlundqvist on 2017-06-09.
@@ -29,25 +34,30 @@ public class Player {
 
     private Rectangle rect;
     private Texture currentImage;
+
     private int currentHp = MAX_HP;
     private float extraAttackRange = 0;
+    private float extraAttackSpeedMultiplier = 1;
     private float damage = 10;
     private DamageType damageType = DamageType.PHYSICAL;
     private Direction direction = Direction.RIGHT;
 
     private float walkX = 0;
 
-    private int attackTimer = 0;
+    private float attackTimer = 0;
     private boolean isAttacking = false;
 
     private boolean isIdling = true;
-    private int idleTimer = 0;
+    private float idleTimer = 0;
 
     private boolean isRunning = false;
-    private int runTimer = 0;
+    private float runTimer = 0;
 
     private boolean ballIsJumping = false;
-    private int jumpTimer = 0;
+    private float jumpTimer = 0;
+
+    private long gold = 0;
+    private long experience = 0;
 
     public Player(final float x, final float y) {
         rect = new Rectangle(x, y, WIDTH, HEIGHT);
@@ -88,7 +98,7 @@ public class Player {
         currentImage = idleSprites[0];
     }
 
-    public void update(final boolean jumpPressed, final boolean attackPressed, final boolean runLeft, final boolean runRight, final List<Monster> monsters) {
+    public void update(final GameScreen gameScreen, final boolean jumpPressed, final boolean attackPressed, final boolean runLeft, final boolean runRight, final List<Monster> monsters) {
         if (!jumpPressed && !attackPressed && !runLeft && !runRight) {
             // stop run
             isRunning = false;
@@ -142,7 +152,21 @@ public class Player {
         }
 
         if (isAttacking) {
-            updateAttack(monsters);
+            updateAttack(monsters, gameScreen);
+        }
+
+        // pick up items
+        Iterator<Item> iterator = gameScreen.getItems().iterator();
+        while (iterator.hasNext()) {
+            Item item = iterator.next();
+            Rectangle newRect = new Rectangle(item.getRect().x - walkX + 12, item.getRect().y + 12, item.getRect().width - 12, item.getRect().height - 12);
+            if (newRect.overlaps(rect)) {
+                if (item.getName().equals(Coin.ITEM_NAME)) {
+                    gold++;
+                }
+
+                iterator.remove();
+            }
         }
     }
 
@@ -161,6 +185,18 @@ public class Player {
         if (rect.overlaps(hitBox)) {
             currentHp -= damage;
         }
+    }
+
+    public long getGold() {
+        return gold;
+    }
+
+    public long getExperience() {
+        return experience;
+    }
+
+    public int getCurrentHp() {
+        return currentHp;
     }
 
     private void startJump() {
@@ -182,7 +218,7 @@ public class Player {
     }
 
     private void updateJump() {
-        rect.y += 1400 * Gdx.graphics.getDeltaTime();
+        rect.y += 1300 * Gdx.graphics.getDeltaTime();
 
         jumpTimer++;
         if (jumpTimer == 15 || rect.y < GameScreen.BASE_GROUND_Y) {
@@ -193,104 +229,20 @@ public class Player {
     }
 
     private void updateRun() {
-        runTimer++;
-
-        int currentIndex = 0;
-
-        if (runTimer <= 5) {
-            currentIndex = 0;
-        } else if (runTimer <= 10) {
-            currentIndex = 1;
-        } else if (runTimer <= 15) {
-            currentIndex = 2;
-        }else if (runTimer <= 20) {
-            currentIndex = 3;
-        }else if (runTimer <= 25) {
-            currentIndex = 4;
-        }else if (runTimer <= 30) {
-            currentIndex = 5;
-        }else if (runTimer <= 35) {
-            currentIndex = 6;
-        }else if (runTimer <= 40) {
-            currentIndex = 7;
-        }else if (runTimer <= 45) {
-            currentIndex = 8;
-        }else if (runTimer <= 50) {
-            currentIndex = 9;
-        }
-
-        currentImage = runSprites[currentIndex];
-
-        if (runTimer == 50) {
-            runTimer = 0;
-        }
+        currentImage = SpriteUtil.getCurrentSprite(runTimer, runSprites);
+        runTimer = SpriteUtil.updateSpriteTimer(runTimer, runSprites);
     }
 
     private void updateIdle() {
-        idleTimer++;
-
-        int currentIndex = 0;
-
-        if (idleTimer <= 5) {
-            currentIndex = 0;
-        } else if (idleTimer <= 10) {
-            currentIndex = 1;
-        } else if (idleTimer <= 15) {
-            currentIndex = 2;
-        }else if (idleTimer <= 20) {
-            currentIndex = 3;
-        }else if (idleTimer <= 25) {
-            currentIndex = 4;
-        }else if (idleTimer <= 30) {
-            currentIndex = 5;
-        }else if (idleTimer <= 35) {
-            currentIndex = 6;
-        }else if (idleTimer <= 40) {
-            currentIndex = 7;
-        }else if (idleTimer <= 45) {
-            currentIndex = 8;
-        }else if (idleTimer <= 50) {
-            currentIndex = 9;
-        }
-
-        currentImage = idleSprites[currentIndex];
-
-        if (idleTimer == 50) {
-            idleTimer = 0;
-        }
-
+        currentImage = SpriteUtil.getCurrentSprite(idleTimer, idleSprites);
+        idleTimer = SpriteUtil.updateSpriteTimer(idleTimer, idleSprites);
     }
 
-    private void updateAttack(List<Monster> monsters) {
-        attackTimer++;
+    private void updateAttack(List<Monster> monsters, final GameScreen gameScreen) {
+        currentImage = SpriteUtil.getCurrentSprite(attackTimer, attackSprites, SpriteUtil.SPRITE_TICK_INTERVAL_DEFAULT * extraAttackSpeedMultiplier);
+        attackTimer = SpriteUtil.updateSpriteTimer(attackTimer, attackSprites, SpriteUtil.SPRITE_TICK_INTERVAL_DEFAULT * extraAttackSpeedMultiplier);
 
-        int currentIndex = 0;
-
-        if (attackTimer <= 5) {
-            currentIndex = 0;
-        } else if (attackTimer <= 10) {
-            currentIndex = 1;
-        } else if (attackTimer <= 15) {
-            currentIndex = 2;
-        }else if (attackTimer <= 20) {
-            currentIndex = 3;
-        }else if (attackTimer <= 25) {
-            currentIndex = 4;
-        }else if (attackTimer <= 30) {
-            currentIndex = 5;
-        }else if (attackTimer <= 35) {
-            currentIndex = 6;
-        }else if (attackTimer <= 40) {
-            currentIndex = 7;
-        }else if (attackTimer <= 45) {
-            currentIndex = 8;
-        }else if (attackTimer <= 50) {
-            currentIndex = 9;
-        }
-
-        currentImage = attackSprites[currentIndex];
-
-        if (attackTimer == 50) {
+        if (SpriteUtil.isAnimationFinished(attackTimer, attackSprites, SpriteUtil.SPRITE_TICK_INTERVAL_DEFAULT * extraAttackSpeedMultiplier)) {
             attackTimer = 0;
             isAttacking = false;
             currentImage = idleSprites[0];
@@ -301,9 +253,13 @@ public class Player {
             boolean flip = (direction == Direction.LEFT);
             attackHitBox = new Rectangle(flip ? rect.x - 32 + 8 - extraAttackRange : rect.x + 64 - 8 + extraAttackRange, rect.y, 32, HEIGHT);
             for (Monster monster : monsters) {
-                monster.didGetAttacked(attackHitBox, damage, damageType, walkX);
+                monster.didGetAttacked(gameScreen, attackHitBox, damage, damageType, walkX, this);
             }
         }
+    }
+
+    public void gainExperience(long experience) {
+        this.experience += experience;
     }
 
     public float getWalkX() {

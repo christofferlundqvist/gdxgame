@@ -14,6 +14,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import se.christoffer.gdx.game.item.Coin;
+import se.christoffer.gdx.game.item.Item;
 import se.christoffer.gdx.game.player.Player;
 import se.christoffer.gdx.game.units.Monster;
 import se.christoffer.gdx.game.units.Zombie;
@@ -31,7 +33,7 @@ import se.christoffer.gdx.game.units.Zombie;
  */
 public class GameScreen implements Screen {
 
-    final GdxGame game;
+    public final GdxGame game;
     public static Logger log = new Logger("Game");
 
     private static final int VIEWPORT_WIDTH = 800;
@@ -57,6 +59,7 @@ public class GameScreen implements Screen {
     private Texture backgroundImage2;
 
     private List<Monster> monsters = new ArrayList<Monster>();
+    private List<Item> items = new ArrayList<Item>();
 
     public GameScreen(final GdxGame gam) {
         this.game = gam;
@@ -92,18 +95,16 @@ public class GameScreen implements Screen {
     }
 
     private void applyGravity() {
-        if (player.getRect().y >= BASE_GROUND_Y) {
+        if (player.getRect().y > BASE_GROUND_Y) {
             player.getRect().setY(player.getRect().y - GRAVITY * 200 * Gdx.graphics.getDeltaTime());
+        } else {
+            player.getRect().setY(BASE_GROUND_Y);
         }
     }
 
-    float first = 0;
-    float second = 0;
-
     private static final int actionButtonWidth = 150;
     private static final int actionButtonHeight = 150;
-    private static final int attackButtonIndex = 2;
-    private static final int jumpButtonIndex = 1;
+    private static final int attackButtonHeight = 200;
 
     @Override
     public void render(float delta) {
@@ -139,8 +140,9 @@ public class GameScreen implements Screen {
         game.batch.draw(backgroundImage, bgAdded, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
         game.batch.draw(backgroundImage2, bgAdded2, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
 
-        game.font.draw(game.batch, "player.x, player.y: " + player.getRect().x + ", " + player.getRect().y, 0, VIEWPORT_HEIGHT);
-        game.font.draw(game.batch, "walkX: " + player.getWalkX(), 0, VIEWPORT_HEIGHT - 50);
+        game.font.draw(game.batch, "Gold: " + player.getGold(), 0, VIEWPORT_HEIGHT);
+        game.font.draw(game.batch, "Exp: " + player.getExperience(), 0, VIEWPORT_HEIGHT - 25);
+        game.font.draw(game.batch, "HP: " + player.getCurrentHp(), 0, VIEWPORT_HEIGHT - 50);
 
         game.batch.end();
 
@@ -155,19 +157,16 @@ public class GameScreen implements Screen {
                 touchPos.set(Gdx.input.getX(i), Gdx.input.getY(i), 0);
                 camera.unproject(touchPos);
 
-                first = touchPos.x;
-                second = touchPos.y;
-
-                if (touchPos.x > (VIEWPORT_WIDTH - actionButtonWidth * jumpButtonIndex) && touchPos.y > (VIEWPORT_HEIGHT - actionButtonHeight)) {
+                if (touchPos.x > (VIEWPORT_WIDTH - actionButtonWidth * 2) && touchPos.y > (VIEWPORT_HEIGHT - actionButtonHeight)) {
                     jumpPressed = true;
-                } else if (touchPos.x > (VIEWPORT_WIDTH - actionButtonWidth * attackButtonIndex) && touchPos.x <= (VIEWPORT_WIDTH - actionButtonWidth) && touchPos.y > (VIEWPORT_HEIGHT - actionButtonHeight)) {
+                } else if (touchPos.x < (actionButtonWidth * 2) && touchPos.y > (VIEWPORT_HEIGHT - attackButtonHeight)) {
                     attackPressed = true;
                 }
 
-                if (touchPos.x > VIEWPORT_WIDTH - 200 && touchPos.y <= (VIEWPORT_HEIGHT - actionButtonHeight)) {
+                if (touchPos.x > VIEWPORT_WIDTH - 200 && touchPos.y <= (VIEWPORT_HEIGHT - attackButtonHeight)) {
                     // move right
                     runRight = true;
-                } else if (touchPos.x < 200) {
+                } else if (touchPos.x < 200 && !attackPressed) {
                     // move left
                     runLeft = true;
                 }
@@ -175,9 +174,9 @@ public class GameScreen implements Screen {
         }
 
         // process user input
-        player.update(jumpPressed, attackPressed, runLeft, runRight, monsters);
+        player.update(this, jumpPressed, attackPressed, runLeft, runRight, monsters);
 
-        // remove invalid monsters?
+        // remove invalid monsters
         Iterator<Monster> iterator = monsters.iterator();
         while (iterator.hasNext()) {
             Monster monster = iterator.next();
@@ -191,15 +190,31 @@ public class GameScreen implements Screen {
             monster.render(game, player.getWalkX());
         }
 
+        // update/render coins first
+        for (Item item : items) {
+            if (item.getName().equals(Coin.ITEM_NAME)) {
+                item.update(this, player, player.getWalkX());
+                item.render(this, player.getWalkX());
+            }
+        }
+
+        // update/render rest of items
+        for (Item item : items) {
+            if (!item.getName().equals(Coin.ITEM_NAME)) {
+                item.update(this, player, player.getWalkX());
+                item.render(this, player.getWalkX());
+            }
+        }
+
         game.batch.begin();
 
         player.render(game);
 
         // touchPos.x > (VIEWPORT_WIDTH - 180) && touchPos.y > (VIEWPORT_HEIGHT - 180)
-        game.batch.draw(jumpButton, VIEWPORT_WIDTH - actionButtonWidth * jumpButtonIndex, VIEWPORT_HEIGHT - actionButtonHeight, actionButtonWidth, actionButtonHeight);
+        //game.batch.draw(jumpButton, VIEWPORT_WIDTH - actionButtonWidth * jumpButtonIndex, VIEWPORT_HEIGHT - actionButtonHeight, actionButtonWidth, actionButtonHeight);
 
         // touchPos.x > (VIEWPORT_WIDTH - 360) && touchPos.x <= (VIEWPORT_WIDTH - 180) && touchPos.y > (VIEWPORT_HEIGHT - 180)
-        game.batch.draw(attackButton, VIEWPORT_WIDTH - actionButtonWidth * attackButtonIndex, VIEWPORT_HEIGHT - actionButtonHeight, actionButtonWidth, actionButtonHeight);
+        //game.batch.draw(attackButton, VIEWPORT_WIDTH - actionButtonWidth * attackButtonIndex, VIEWPORT_HEIGHT - actionButtonHeight, actionButtonWidth, actionButtonHeight);
 
 
         game.batch.end();
@@ -237,6 +252,14 @@ public class GameScreen implements Screen {
         dropSound.dispose();
         rainMusic.dispose();
         // TODO dispose player + monster images????
+    }
+
+    public void addItem(Item item) {
+        items.add(item);
+    }
+
+    public List<Item> getItems() {
+        return items;
     }
 
 }
