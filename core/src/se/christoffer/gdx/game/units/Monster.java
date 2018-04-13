@@ -7,11 +7,16 @@ import se.christoffer.gdx.game.GdxGame;
 import se.christoffer.gdx.game.player.Player;
 import se.christoffer.gdx.game.util.DamageType;
 import se.christoffer.gdx.game.util.Direction;
+import se.christoffer.gdx.game.util.RenderUtil;
 
 /**
  * Created by christofferlundqvist on 2017-05-26.
  */
 public class Monster {
+
+    protected final float width;
+    protected final float height;
+    protected final float maxHp;
 
     protected long experienceGain = 0;
     protected State state = State.IDLE;
@@ -23,12 +28,18 @@ public class Monster {
         MOVING, ATTACKING, IDLE, DEAD, INVALID
     }
 
+    public Monster(float width, float height, float maxHp) {
+         this.width = width;
+         this.height = height;
+         this.maxHp = maxHp;
+    }
+
     public void update(final Player player, final float walkX) {
 
     }
 
-    public void render(final GdxGame gdxGame, final float walkX) {
-
+    public void render(final GdxGame game, final float walkX) {
+        RenderUtil.drawHpBar(game, rect.x - walkX, rect.y + height + 4, height, currentHp, maxHp);
     }
 
     public void didGetAttacked(final GameScreen gameScreen, final Rectangle hitBox, final float damage, final DamageType damageType, final float walkX, Player player) {
@@ -38,7 +49,7 @@ public class Monster {
             currentHp -= damage;
         }
 
-        if (currentHp <= 0 && state != State.DEAD && state != State.INVALID) {
+        if (currentHp <= 0 && !isDead()) {
             player.gainExperience(experienceGain);
             rect.y -= 10;
             state = State.DEAD;
@@ -52,6 +63,14 @@ public class Monster {
 
     public void onDeath(final GameScreen gameScreen) {
 
+    }
+
+    public Rectangle getRect() {
+        return rect;
+    }
+
+    public boolean isDead() {
+        return state == State.DEAD || state == State.INVALID;
     }
 
 }

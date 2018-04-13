@@ -36,11 +36,11 @@ public class GameScreen implements Screen {
     public final GdxGame game;
     public static Logger log = new Logger("Game");
 
-    private static final int VIEWPORT_WIDTH = 800;
-    private static final int VIEWPORT_HEIGHT = 480;
+    private static final int VIEWPORT_WIDTH = 480;
+    private static final int VIEWPORT_HEIGHT = 800;
 
     public static float GRAVITY = 3.8f;
-    public static final float BASE_GROUND_Y = 70f;
+    public static final float BASE_GROUND_Y = 150f;
 
     private Player player;
 
@@ -50,48 +50,61 @@ public class GameScreen implements Screen {
     private Texture jumpButton;
     private Texture attackButton;
 
-    Texture dropImage;
-    Sound dropSound;
-    Music rainMusic;
     OrthographicCamera camera;
 
     private Texture backgroundImage;
     private Texture backgroundImage2;
+    private int bg1X = 0;
+    private int bg2X = VIEWPORT_WIDTH;
+    private float lastBgX = 0;
+    private float lastBgX2 = 0;
 
     private List<Monster> monsters = new ArrayList<Monster>();
     private List<Item> items = new ArrayList<Item>();
 
+    private int level = 1;
+    private static final float LEVEL_LENGTH = 5000;
+    private static final int MONSTER_WAVES_PER_LEVEL = 7;
+    private static final float MONSTER_WAVE_SPREAD_X = 200;
+    private static final float MONSTER_WAVE_SPREAD_Y = 50;
+
     public GameScreen(final GdxGame gam) {
         this.game = gam;
-
-        // load the images for the droplet and the bucket, 64x64 pixels each
-        dropImage = new Texture(Gdx.files.internal("droplet.png"));
 
         jumpButton = new Texture(Gdx.files.internal("jumpButton.png"));
         attackButton = new Texture(Gdx.files.internal("attackButton.png"));
 
         Zombie.loadAssets();
 
-        monsters.add(new Zombie((int) (Math.random() * 3000), BASE_GROUND_Y));
-        monsters.add(new Zombie((int) (Math.random() * 3000), BASE_GROUND_Y));
-        monsters.add(new Zombie((int) (Math.random() * 3000), BASE_GROUND_Y));
-        monsters.add(new Zombie((int) (Math.random() * 3000), BASE_GROUND_Y));
-        monsters.add(new Zombie((int) (Math.random() * 3000), BASE_GROUND_Y));
-        monsters.add(new Zombie((int) (Math.random() * 3000), BASE_GROUND_Y));
+        loadLevel();
 
-        backgroundImage = new Texture(Gdx.files.internal("bg3.jpg"));
-        backgroundImage2 = new Texture(Gdx.files.internal("bg3.jpg"));
+        backgroundImage = new Texture(Gdx.files.internal("background/Game_Background_17.png"));
 
-        // load the drop sound effect and the rain background "music"
-        dropSound = Gdx.audio.newSound(Gdx.files.internal("drop.wav"));
-        rainMusic = Gdx.audio.newMusic(Gdx.files.internal("rain.mp3"));
-        rainMusic.setLooping(true);
+        backgroundImage.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
+
+        backgroundImage2 = new Texture(Gdx.files.internal("background/Game_Background_17.png"));
 
         // create the camera and the SpriteBatch
         camera = new OrthographicCamera();
         camera.setToOrtho(false, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
 
         player = new Player(VIEWPORT_WIDTH / 6, BASE_GROUND_Y);
+    }
+
+    private void loadLevel() {
+        level++;
+
+        float spreadY = (float) (Math.random() * MONSTER_WAVE_SPREAD_Y);
+        float negOrPosSpreadY = spreadY - spreadY * 2;
+
+        float spreadX = (float) (Math.random() * MONSTER_WAVE_SPREAD_X);
+
+        monsters.add(new Zombie((float) (Math.random() * level * LEVEL_LENGTH) + 70f + spreadX, BASE_GROUND_Y + negOrPosSpreadY));
+        monsters.add(new Zombie((float) (Math.random() * level * LEVEL_LENGTH) + 70f + spreadX, BASE_GROUND_Y + negOrPosSpreadY));
+        monsters.add(new Zombie((float) (Math.random() * level * LEVEL_LENGTH) + 70f + spreadX, BASE_GROUND_Y + negOrPosSpreadY));
+        monsters.add(new Zombie((float) (Math.random() * level * LEVEL_LENGTH) + 70f + spreadX, BASE_GROUND_Y + negOrPosSpreadY));
+        monsters.add(new Zombie((float) (Math.random() * level * LEVEL_LENGTH) + 70f + spreadX, BASE_GROUND_Y + negOrPosSpreadY));
+        monsters.add(new Zombie((float) (Math.random() * level * LEVEL_LENGTH) + 70f + spreadX, BASE_GROUND_Y + negOrPosSpreadY));
     }
 
     private void applyGravity() {
@@ -102,9 +115,20 @@ public class GameScreen implements Screen {
         }
     }
 
-    private static final int actionButtonWidth = 150;
-    private static final int actionButtonHeight = 150;
-    private static final int attackButtonHeight = 200;
+    private void renderBackground() {
+        if (lastBgX + VIEWPORT_WIDTH < 0) {
+            bg1X += VIEWPORT_WIDTH;
+        }
+
+        if (lastBgX2 < 0) {
+            bg2X += VIEWPORT_WIDTH;
+        }
+
+        lastBgX = bg1X - player.getWalkX();
+        lastBgX2 = bg2X - player.getWalkX();
+        game.batch.draw(backgroundImage, lastBgX, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
+        game.batch.draw(backgroundImage2, lastBgX2, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
+    }
 
     @Override
     public void render(float delta) {
@@ -121,31 +145,22 @@ public class GameScreen implements Screen {
         // tell the SpriteBatch to render in the
         // coordinate system specified by the camera.
         game.batch.setProjectionMatrix(camera.combined);
+        game.shapeRenderer.setProjectionMatrix(camera.combined);
 
         // begin a new batch and draw the bucket and
         // all drops
         game.batch.begin();
 
-        float bgAdded = - player.getWalkX();
-        float bgAdded2 = VIEWPORT_WIDTH - player.getWalkX();
-
-        if (bgAdded < -VIEWPORT_WIDTH) {
-            bgAdded = bgAdded2 + VIEWPORT_WIDTH;
-        }
-
-        if (bgAdded2 < -VIEWPORT_WIDTH) {
-            bgAdded2 = bgAdded + VIEWPORT_WIDTH;
-        }
-
-        game.batch.draw(backgroundImage, bgAdded, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
-        game.batch.draw(backgroundImage2, bgAdded2, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
-
+        // draw background / UI
+        renderBackground();
         game.font.draw(game.batch, "Gold: " + player.getGold(), 0, VIEWPORT_HEIGHT);
         game.font.draw(game.batch, "Exp: " + player.getExperience(), 0, VIEWPORT_HEIGHT - 25);
         game.font.draw(game.batch, "HP: " + player.getCurrentHp(), 0, VIEWPORT_HEIGHT - 50);
+        game.font.draw(game.batch, "Level: " + level, 0, VIEWPORT_HEIGHT - 75);
 
         game.batch.end();
 
+        /*
         boolean jumpPressed = false;
         boolean attackPressed = false;
         boolean runLeft = false;
@@ -171,10 +186,10 @@ public class GameScreen implements Screen {
                     runLeft = true;
                 }
             }
-        }
+        } */
 
         // process user input
-        player.update(this, jumpPressed, attackPressed, runLeft, runRight, monsters);
+        player.update(this, monsters);
 
         // remove invalid monsters
         Iterator<Monster> iterator = monsters.iterator();
@@ -206,20 +221,15 @@ public class GameScreen implements Screen {
             }
         }
 
-        game.batch.begin();
 
         player.render(game);
 
-        // touchPos.x > (VIEWPORT_WIDTH - 180) && touchPos.y > (VIEWPORT_HEIGHT - 180)
-        //game.batch.draw(jumpButton, VIEWPORT_WIDTH - actionButtonWidth * jumpButtonIndex, VIEWPORT_HEIGHT - actionButtonHeight, actionButtonWidth, actionButtonHeight);
-
-        // touchPos.x > (VIEWPORT_WIDTH - 360) && touchPos.x <= (VIEWPORT_WIDTH - 180) && touchPos.y > (VIEWPORT_HEIGHT - 180)
-        //game.batch.draw(attackButton, VIEWPORT_WIDTH - actionButtonWidth * attackButtonIndex, VIEWPORT_HEIGHT - actionButtonHeight, actionButtonWidth, actionButtonHeight);
-
-
-        game.batch.end();
-
         applyGravity();
+
+        // next level?
+        if (player.getWalkX() >= level * LEVEL_LENGTH) {
+            loadLevel();
+        }
     }
 
     @Override
@@ -248,9 +258,7 @@ public class GameScreen implements Screen {
 
     @Override
     public void dispose() {
-        dropImage.dispose();
-        dropSound.dispose();
-        rainMusic.dispose();
+
         // TODO dispose player + monster images????
     }
 

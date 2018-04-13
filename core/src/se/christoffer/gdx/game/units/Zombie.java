@@ -21,13 +21,10 @@ import se.christoffer.gdx.game.util.SpriteUtil;
 public class Zombie extends Monster {
 
     private static final long EXPERIENCE_GAIN = 10;
-    private static final float WIDTH = 64;
-    private static final float HEIGHT = 64;
     private static final float WALK_SPEED = 50;
     private static final float ATTACK_RANGE = 2; // extra px attack range
     private static final float ATTACK_SPEED_MULTIPLIER = 1.5f; //
     private static final float SPRITE_TICK_INTERVAL = SpriteUtil.SPRITE_TICK_INTERVAL_DEFAULT * ATTACK_SPEED_MULTIPLIER;
-    private static final float MAX_HP = 50;
     private static final float ATTACK_DAMAGE = 5;
     private static final DamageType DAMAGE_TYPE = DamageType.PHYSICAL;
 
@@ -50,9 +47,10 @@ public class Zombie extends Monster {
     }
 
     public Zombie(float x, float y) {
-        rect = new Rectangle(x, y, WIDTH, HEIGHT);
+        super(64, 64, 30);
+        rect = new Rectangle(x, y, width, height);
         state = State.MOVING;
-        currentHp = MAX_HP;
+        currentHp = maxHp;
         currentImage = walkSprites[0];
         experienceGain = EXPERIENCE_GAIN;
     }
@@ -125,7 +123,7 @@ public class Zombie extends Monster {
         // TODO can it ever skip 16?
         if (attackTimer == 16) {
             boolean flip = (direction == Direction.LEFT);
-            attackHitBox = new Rectangle(flip ? rect.x - walkX - 16 : rect.x - walkX + WIDTH, rect.y, 16, HEIGHT);
+            attackHitBox = new Rectangle(flip ? rect.x - walkX - 16 : rect.x - walkX + width, rect.y, 16, height);
             player.didGetAttacked(attackHitBox, ATTACK_DAMAGE, DAMAGE_TYPE);
         }
 
@@ -144,11 +142,11 @@ public class Zombie extends Monster {
         }
     }
 
-    private boolean isCloseTo(final Rectangle target, final float walkX) {
+    public boolean isCloseTo(final Rectangle target, final float walkX) {
         float x = target.x + target.width / 2 + walkX;
         float y = target.y + target.width / 2; // + walkY
 
-        double distance = Math.sqrt( (rect.x + WIDTH / 2 - x) * (rect.x + WIDTH / 2 - x) + (rect.y + HEIGHT / 2 - y) * (rect.y + HEIGHT / 2 - y) );
+        double distance = Math.sqrt( (rect.x + width / 2 - x) * (rect.x + width / 2 - x) + (rect.y + height / 2 - y) * (rect.y + height / 2 - y) );
         distance -= target.width / 2;
         return distance < ATTACK_RANGE;
     }
@@ -177,8 +175,10 @@ public class Zombie extends Monster {
     public void render(final GdxGame game, final float walkX) {
         game.batch.begin();
         boolean flip = (direction == Direction.LEFT);
-        game.batch.draw(currentImage, flip ? rect.x + WIDTH - walkX: rect.x - walkX, rect.y, flip ? - WIDTH : WIDTH, HEIGHT);
+        game.batch.draw(currentImage, flip ? rect.x + width - walkX: rect.x - walkX, rect.y, flip ? - width : width, height);
         game.batch.end();
+
+        super.render(game, walkX);
     }
 
 }

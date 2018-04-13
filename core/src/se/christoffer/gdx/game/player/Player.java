@@ -1,8 +1,10 @@
 package se.christoffer.gdx.game.player;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Logger;
 
@@ -14,8 +16,10 @@ import se.christoffer.gdx.game.GdxGame;
 import se.christoffer.gdx.game.item.Coin;
 import se.christoffer.gdx.game.item.Item;
 import se.christoffer.gdx.game.units.Monster;
+import se.christoffer.gdx.game.units.Zombie;
 import se.christoffer.gdx.game.util.DamageType;
 import se.christoffer.gdx.game.util.Direction;
+import se.christoffer.gdx.game.util.RenderUtil;
 import se.christoffer.gdx.game.util.SpriteUtil;
 
 /**
@@ -23,10 +27,10 @@ import se.christoffer.gdx.game.util.SpriteUtil;
  */
 public class Player {
 
-    private static final int MAX_HP = 100;
+    private static final float MAX_HP = 100;
     private static final int WIDTH = 64;
     private static final int HEIGHT = 64;
-    private static final float WALK_SPEED = 200f;
+    private static final float WALK_SPEED = 250f;
 
     private static Texture[] runSprites = new Texture[10];
     private static Texture[] attackSprites = new Texture[10];
@@ -35,7 +39,7 @@ public class Player {
     private Rectangle rect;
     private Texture currentImage;
 
-    private int currentHp = MAX_HP;
+    private float currentHp = MAX_HP;
     private float extraAttackRange = 0;
     private float extraAttackSpeedMultiplier = 1;
     private float damage = 10;
@@ -47,7 +51,7 @@ public class Player {
     private float attackTimer = 0;
     private boolean isAttacking = false;
 
-    private boolean isIdling = true;
+    private boolean isIdling = false;
     private float idleTimer = 0;
 
     private boolean isRunning = false;
@@ -98,44 +102,21 @@ public class Player {
         currentImage = idleSprites[0];
     }
 
-    public void update(final GameScreen gameScreen, final boolean jumpPressed, final boolean attackPressed, final boolean runLeft, final boolean runRight, final List<Monster> monsters) {
-        if (!jumpPressed && !attackPressed && !runLeft && !runRight) {
-            // stop run
-            isRunning = false;
-            // runTimer = 0;
+    public void update(final GameScreen gameScreen, final List<Monster> monsters) {
 
-            if (!isAttacking) {
-                isIdling = true;
-            }
-        }
+        // check collision monsters
+        for (Monster monster : monsters) {
 
-        // update touch events
-        if (jumpPressed) {
-            if (!ballIsJumping && rect.y <= GameScreen.BASE_GROUND_Y) {
-                startJump();
+            if (monster instanceof Zombie) {
+                if (((Zombie) monster).isCloseTo(this.rect, getWalkX()) && !monster.isDead()) {
+                    isAttacking = true;
+                    isRunning = false;
+                }
             }
-        }
 
-        if (runRight) {
-            walkX += WALK_SPEED * Gdx.graphics.getDeltaTime();
-            direction = Direction.RIGHT;
-            if (!isRunning) {
-                startRun();
-            }
-        }
-
-        if (runLeft) {
-            walkX -= WALK_SPEED * Gdx.graphics.getDeltaTime();
-            direction = Direction.LEFT;
-            if (!isRunning) {
-                startRun();
-            }
-        }
-
-        if (attackPressed) {
-            if (!isAttacking) {
-                startAttack();
-            }
+            /*if (monster.getRect().overlaps(this.rect)) {
+                isAttacking = true;
+            } */
         }
 
         // update the rest
@@ -147,12 +128,21 @@ public class Player {
             updateIdle();
         }
 
-        if (isRunning) {
-            updateRun();
-        }
-
         if (isAttacking) {
             updateAttack(monsters, gameScreen);
+        } else {
+
+            // run
+            walkX += WALK_SPEED * Gdx.graphics.getDeltaTime();
+            direction = Direction.RIGHT;
+            if (!isRunning) {
+                startRun();
+            }
+
+        }
+
+        if (isRunning) {
+            updateRun();
         }
 
         // pick up items
@@ -174,11 +164,16 @@ public class Player {
 
     public void render(final GdxGame game) {
         boolean flip = (direction == Direction.LEFT);
+
+        game.batch.begin();
         game.batch.draw(currentImage, flip ? rect.x + rect.width : rect.x, rect.y, flip ? - rect.width : rect.width, rect.height);
+        game.batch.end();
 
         /* if (attackHitBox != null && runSprites[8] != null) {
             game.batch.draw(runSprites[8], flip ? rect.x - 32 + 8 - extraAttackRange : rect.x + 64 - 8 + extraAttackRange, rect.y, 32, HEIGHT);
         } */
+
+        RenderUtil.drawHpBar(game, rect.x, rect.y + HEIGHT + 4, WIDTH, currentHp, MAX_HP);
     }
 
     public void didGetAttacked(final Rectangle hitBox, final float damage, final DamageType damageType) {
@@ -195,7 +190,7 @@ public class Player {
         return experience;
     }
 
-    public int getCurrentHp() {
+    public float getCurrentHp() {
         return currentHp;
     }
 
