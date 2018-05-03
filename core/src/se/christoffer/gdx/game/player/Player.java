@@ -1,24 +1,25 @@
 package se.christoffer.gdx.game.player;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.Sprite;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
-import com.badlogic.gdx.utils.Logger;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
 import se.christoffer.gdx.game.GameScreen;
 import se.christoffer.gdx.game.GdxGame;
 import se.christoffer.gdx.game.item.Coin;
+import se.christoffer.gdx.game.item.HPPotion;
 import se.christoffer.gdx.game.item.Item;
+import se.christoffer.gdx.game.spells.Haste;
+import se.christoffer.gdx.game.spells.Spell;
 import se.christoffer.gdx.game.units.Monster;
 import se.christoffer.gdx.game.units.Zombie;
 import se.christoffer.gdx.game.util.DamageType;
 import se.christoffer.gdx.game.util.Direction;
+import se.christoffer.gdx.game.util.Logger;
 import se.christoffer.gdx.game.util.RenderUtil;
 import se.christoffer.gdx.game.util.SpriteUtil;
 
@@ -27,26 +28,35 @@ import se.christoffer.gdx.game.util.SpriteUtil;
  */
 public class Player {
 
-    private static final float MAX_HP = 100;
+    private float maxHp = 100;
     private static final int WIDTH = 64;
     private static final int HEIGHT = 64;
-    private static final float WALK_SPEED = 250f;
+    private static final float WALK_SPEED = 150f;
 
     private static Texture[] runSprites = new Texture[10];
     private static Texture[] attackSprites = new Texture[10];
     private static Texture[] idleSprites = new Texture[10];
+    private static Texture[] deadSprites = new Texture[10];
 
     private Rectangle rect;
     private Texture currentImage;
 
-    private float currentHp = MAX_HP;
+    private float currentHp = maxHp;
     private float extraAttackRange = 0;
     private float extraAttackSpeedMultiplier = 1;
+    private float extraMoveSpeedMultiplier = 1;
+
     private float damage = 10;
     private DamageType damageType = DamageType.PHYSICAL;
     private Direction direction = Direction.RIGHT;
+    private float maxMana = 100f;
+    private float currentMana = maxMana;
+    private List<Spell> activeSpellBuffs = new ArrayList<Spell>();
+    private List<Spell> spells = new ArrayList<Spell>();
 
-    private float walkX = 0;
+    private long walkX = 0;
+    private boolean isDead = false;
+    private float deadTimer = 0;
 
     private float attackTimer = 0;
     private boolean isAttacking = false;
@@ -99,10 +109,37 @@ public class Player {
         attackSprites[8] = new Texture(Gdx.files.internal("Attack (9).png"));
         attackSprites[9] = new Texture(Gdx.files.internal("Attack (10).png"));
 
+        deadSprites[0] = new Texture(Gdx.files.internal("Dead (1).png"));
+        deadSprites[1] = new Texture(Gdx.files.internal("Dead (2).png"));
+        deadSprites[2] = new Texture(Gdx.files.internal("Dead (3).png"));
+        deadSprites[3] = new Texture(Gdx.files.internal("Dead (4).png"));
+        deadSprites[4] = new Texture(Gdx.files.internal("Dead (5).png"));
+        deadSprites[5] = new Texture(Gdx.files.internal("Dead (6).png"));
+        deadSprites[6] = new Texture(Gdx.files.internal("Dead (7).png"));
+        deadSprites[7] = new Texture(Gdx.files.internal("Dead (8).png"));
+        deadSprites[8] = new Texture(Gdx.files.internal("Dead (9).png"));
+        deadSprites[9] = new Texture(Gdx.files.internal("Dead (10).png"));
+
         currentImage = idleSprites[0];
+
+        // add castable (and other?) spells
+        spells.add(new Haste());
     }
 
     public void update(final GameScreen gameScreen, final List<Monster> monsters) {
+
+        if (currentHp <= 0 && !isDead) {
+            currentImage = SpriteUtil.getCurrentSprite(deadTimer, deadSprites);
+            deadTimer = SpriteUtil.updateSpriteTimer(deadTimer, deadSprites);
+
+            if (SpriteUtil.isAnimationFinished(deadTimer, deadSprites)) {
+                isDead = true;
+            }
+
+            return;
+        } else if (isDead) {
+            return;
+        }
 
         // check collision monsters
         for (Monster monster : monsters) {
@@ -133,7 +170,7 @@ public class Player {
         } else {
 
             // run
-            walkX += WALK_SPEED * Gdx.graphics.getDeltaTime();
+            walkX += WALK_SPEED * Gdx.graphics.getDeltaTime() * GameScreen.speedMultiplier * extraMoveSpeedMultiplier;
             direction = Direction.RIGHT;
             if (!isRunning) {
                 startRun();
@@ -151,16 +188,39 @@ public class Player {
             Item item = iterator.next();
             Rectangle newRect = new Rectangle(item.getRect().x - walkX + 12, item.getRect().y + 12, item.getRect().width - 12, item.getRect().height - 12);
             if (newRect.overlaps(rect)) {
+
+                boolean removeItem = true;
+
                 if (item.getName().equals(Coin.ITEM_NAME)) {
                     gold++;
                 }
 
-                iterator.remove();
+                if (item.getName().equals(HPPotion.ITEM_NAME)) {
+                    if (isFullHp()) {
+                        removeItem = false;
+                    } else {
+                        HPPotion hpPotion = (HPPotion) item;
+                        applyHeal(hpPotion.getHealAmount());
+                    }
+                }
+
+                if (removeItem) {
+                    iterator.remove();
+                }
             }
+        }
+
+        // cast spells
+        for (Spell spell: spells) {
+            spell.update(gameScreen);
         }
     }
 
     Rectangle attackHitBox;
+
+    private boolean isFullHp() {
+        return currentHp == maxHp;
+    }
 
     public void render(final GdxGame game) {
         boolean flip = (direction == Direction.LEFT);
@@ -173,13 +233,32 @@ public class Player {
             game.batch.draw(runSprites[8], flip ? rect.x - 32 + 8 - extraAttackRange : rect.x + 64 - 8 + extraAttackRange, rect.y, 32, HEIGHT);
         } */
 
-        RenderUtil.drawHpBar(game, rect.x, rect.y + HEIGHT + 4, WIDTH, currentHp, MAX_HP);
+        RenderUtil.drawHpBar(game, rect.x, rect.y + HEIGHT + 4, WIDTH, currentHp, maxHp);
+
+        for (Spell spell: spells) {
+            spell.render(game);
+        }
     }
 
     public void didGetAttacked(final Rectangle hitBox, final float damage, final DamageType damageType) {
         if (rect.overlaps(hitBox)) {
-            currentHp -= damage;
+            if (currentHp > 0) {
+                currentHp = Math.max(currentHp - damage, 0);
+            }
         }
+    }
+
+    public void giveGold(final float amount) {
+        gold += amount;
+    }
+
+    public void applyHeal(final float amount) {
+        Logger.log("Healing player with amount: " + amount);
+        currentHp = Math.min(currentHp + amount, maxHp);
+    }
+
+    public void drainMana(final float amount) {
+        currentMana = Math.max(currentMana - amount, 0);
     }
 
     public long getGold() {
@@ -224,8 +303,8 @@ public class Player {
     }
 
     private void updateRun() {
-        currentImage = SpriteUtil.getCurrentSprite(runTimer, runSprites);
-        runTimer = SpriteUtil.updateSpriteTimer(runTimer, runSprites);
+        currentImage = SpriteUtil.getCurrentSprite(runTimer, runSprites, SpriteUtil.SPRITE_TICK_INTERVAL_DEFAULT * (1 / extraMoveSpeedMultiplier));
+        runTimer = SpriteUtil.updateSpriteTimer(runTimer, runSprites, SpriteUtil.SPRITE_TICK_INTERVAL_DEFAULT * (1 / extraMoveSpeedMultiplier));
     }
 
     private void updateIdle() {
@@ -234,17 +313,19 @@ public class Player {
     }
 
     private void updateAttack(List<Monster> monsters, final GameScreen gameScreen) {
-        currentImage = SpriteUtil.getCurrentSprite(attackTimer, attackSprites, SpriteUtil.SPRITE_TICK_INTERVAL_DEFAULT * extraAttackSpeedMultiplier);
-        attackTimer = SpriteUtil.updateSpriteTimer(attackTimer, attackSprites, SpriteUtil.SPRITE_TICK_INTERVAL_DEFAULT * extraAttackSpeedMultiplier);
+        currentImage = SpriteUtil.getCurrentSprite(attackTimer, attackSprites, SpriteUtil.SPRITE_TICK_INTERVAL_DEFAULT * (1 / extraAttackSpeedMultiplier));
+        attackTimer = SpriteUtil.updateSpriteTimer(attackTimer, attackSprites, SpriteUtil.SPRITE_TICK_INTERVAL_DEFAULT * (1 / extraAttackSpeedMultiplier));
 
-        if (SpriteUtil.isAnimationFinished(attackTimer, attackSprites, SpriteUtil.SPRITE_TICK_INTERVAL_DEFAULT * extraAttackSpeedMultiplier)) {
+        if (SpriteUtil.isAnimationFinished(attackTimer, attackSprites, SpriteUtil.SPRITE_TICK_INTERVAL_DEFAULT * (1 / extraAttackSpeedMultiplier))) {
             attackTimer = 0;
             isAttacking = false;
             currentImage = idleSprites[0];
             isIdling = true;
         }
 
-        if (attackTimer == 26) {
+        //se.christoffer.gdx.game.util.Logger.log("extraAttackSpeedMultiplier: " + extraAttackSpeedMultiplier + ", attackTimer: " + attackTimer);
+
+        if (attackTimer == 26 / (Math.max(extraAttackSpeedMultiplier - 1, 1))) {
             boolean flip = (direction == Direction.LEFT);
             attackHitBox = new Rectangle(flip ? rect.x - 32 + 8 - extraAttackRange : rect.x + 64 - 8 + extraAttackRange, rect.y, 32, HEIGHT);
             for (Monster monster : monsters) {
@@ -257,11 +338,11 @@ public class Player {
         this.experience += experience;
     }
 
-    public float getWalkX() {
+    public long getWalkX() {
         return walkX;
     }
 
-    public void setWalkX(float walkX) {
+    public void setWalkX(long walkX) {
         this.walkX = walkX;
     }
 
@@ -271,6 +352,32 @@ public class Player {
 
     public void setRect(Rectangle rect) {
         this.rect = rect;
+    }
+
+    public float getCurrentMana() {
+        return currentMana;
+    }
+
+    public void setCurrentMana(float currentMana) {
+        this.currentMana = currentMana;
+    }
+
+    public void addSpellBuff(Spell spell) {
+        activeSpellBuffs.add(spell);
+        if (spell.isBuff() && spell instanceof Haste) {
+            Haste haste = (Haste) spell;
+            extraAttackSpeedMultiplier += haste.getAttackSpeedMultiplier();
+            extraMoveSpeedMultiplier += haste.getWalkSpeedMultiplier();
+        }
+    }
+
+    public void removeSpellBuff(Spell spell) {
+        activeSpellBuffs.remove(spell);
+        if (spell.isBuff() && spell instanceof Haste) {
+            Haste haste = (Haste) spell;
+            extraAttackSpeedMultiplier -= haste.getAttackSpeedMultiplier();
+            extraMoveSpeedMultiplier -= haste.getWalkSpeedMultiplier();
+        }
     }
 
 }

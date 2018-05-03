@@ -2,6 +2,8 @@ package se.christoffer.gdx.game.util;
 
 import com.badlogic.gdx.graphics.Texture;
 
+import se.christoffer.gdx.game.GameScreen;
+
 /**
  * Created by christofferlundqvist on 2017-07-07.
  */
@@ -14,9 +16,9 @@ public class SpriteUtil {
     }
 
     public static Texture getCurrentSprite(float spriteTimer, Texture[] sprites, float tickInterval) {
-        spriteTimer++;
+        spriteTimer = spriteTimer + 1 * GameScreen.speedMultiplier;
         int currentIndex = Math.max((int) Math.floor(spriteTimer / tickInterval) - 1, 0);
-        return sprites[currentIndex];
+        return sprites[Math.min(currentIndex, sprites.length - 1)];
     }
 
     public static float updateSpriteTimer(float spriteTimer, Texture[] sprites) {
@@ -24,10 +26,11 @@ public class SpriteUtil {
     }
 
     public static float updateSpriteTimer(float spriteTimer, Texture[] sprites, float tickInterval) {
-        if (spriteTimer == tickInterval * sprites.length) {
+        if (isAnimationFinished(spriteTimer, sprites, tickInterval)) {
             return 0;
         } else {
-            return ++spriteTimer;
+            //spriteTimer = spriteTimer + 1 * GameScreen.speedMultiplier;
+            return spriteTimer + 1 * GameScreen.speedMultiplier;
         }
     }
 
@@ -36,7 +39,7 @@ public class SpriteUtil {
     }
 
     public static boolean isAnimationFinished(float spriteTimer, Texture[] sprites, float tickInterval) {
-        return spriteTimer == tickInterval * sprites.length;
+        return spriteTimer >= tickInterval * sprites.length;
     }
 
 }

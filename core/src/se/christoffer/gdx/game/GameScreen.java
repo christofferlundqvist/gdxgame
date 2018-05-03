@@ -2,13 +2,9 @@ package se.christoffer.gdx.game;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
-import com.badlogic.gdx.audio.Music;
-import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.math.Vector3;
-import com.badlogic.gdx.utils.Logger;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -16,9 +12,11 @@ import java.util.List;
 
 import se.christoffer.gdx.game.item.Coin;
 import se.christoffer.gdx.game.item.Item;
+import se.christoffer.gdx.game.pet.Cat;
 import se.christoffer.gdx.game.player.Player;
 import se.christoffer.gdx.game.units.Monster;
 import se.christoffer.gdx.game.units.Zombie;
+import se.christoffer.gdx.game.util.Logger;
 
 /**
  * Created by christofferlundqvist on 2017-05-12.
@@ -34,24 +32,24 @@ import se.christoffer.gdx.game.units.Zombie;
 public class GameScreen implements Screen {
 
     public final GdxGame game;
-    public static Logger log = new Logger("Game");
+
+    public static float speedMultiplier = 1;
+    private int level = 0;
 
     private static final int VIEWPORT_WIDTH = 480;
     private static final int VIEWPORT_HEIGHT = 800;
+
+    private static final float LEVEL_LENGTH = 2000;
+    private static final int MONSTER_WAVES_PER_LEVEL = 7;
+    private static final float MONSTER_VARIATION_X = 1100;
+    private static final float MONSTER_VARIATION_Y = 25;
+    private static final float MONSTER_MIN_SPAWN_POINT_X = 1050f;
 
     public static float GRAVITY = 3.8f;
     public static final float BASE_GROUND_Y = 150f;
 
     private Player player;
-
-    private float bgAdded = 0;
-    private float bgAdded2 = VIEWPORT_WIDTH;
-
-    private Texture jumpButton;
-    private Texture attackButton;
-
-    OrthographicCamera camera;
-
+    private OrthographicCamera camera;
     private Texture backgroundImage;
     private Texture backgroundImage2;
     private int bg1X = 0;
@@ -61,55 +59,63 @@ public class GameScreen implements Screen {
 
     private List<Monster> monsters = new ArrayList<Monster>();
     private List<Item> items = new ArrayList<Item>();
+    private List<Cat> cats = new ArrayList<Cat>();
 
-    private int level = 1;
-    private static final float LEVEL_LENGTH = 5000;
-    private static final int MONSTER_WAVES_PER_LEVEL = 7;
-    private static final float MONSTER_WAVE_SPREAD_X = 200;
-    private static final float MONSTER_WAVE_SPREAD_Y = 50;
+    public GameScreen(final GdxGame game) {
+        this.game = game;
 
-    public GameScreen(final GdxGame gam) {
-        this.game = gam;
-
-        jumpButton = new Texture(Gdx.files.internal("jumpButton.png"));
-        attackButton = new Texture(Gdx.files.internal("attackButton.png"));
-
+        // TODO
         Zombie.loadAssets();
+        Cat.loadAssets();
 
         loadLevel();
 
         backgroundImage = new Texture(Gdx.files.internal("background/Game_Background_17.png"));
-
         backgroundImage.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
-
-        backgroundImage2 = new Texture(Gdx.files.internal("background/Game_Background_17.png"));
+        backgroundImage2 = backgroundImage;
 
         // create the camera and the SpriteBatch
         camera = new OrthographicCamera();
         camera.setToOrtho(false, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
 
         player = new Player(VIEWPORT_WIDTH / 6, BASE_GROUND_Y);
+
+        cats.add(new Cat(20, BASE_GROUND_Y - 30));
+    }
+
+    public Player getPlayer() {
+        return player;
+    }
+
+    public void setPlayer(Player player) {
+        this.player = player;
     }
 
     private void loadLevel() {
         level++;
 
-        float spreadY = (float) (Math.random() * MONSTER_WAVE_SPREAD_Y);
-        float negOrPosSpreadY = spreadY - spreadY * 2;
+        for (int i = 0; i < MONSTER_WAVES_PER_LEVEL; i++) {
+            float x = getMonsterSpawnPointXAtLevel(MONSTER_VARIATION_X);
+            float y = getMonsterSpawnPointYAtLevel(MONSTER_VARIATION_Y);
+            monsters.add(new Zombie(x, y));
+        }
+    }
 
-        float spreadX = (float) (Math.random() * MONSTER_WAVE_SPREAD_X);
+    private float getMonsterSpawnPointYAtLevel(float variationY) {
+        // 1 or -1
+        float direction = (int) (Math.random() * 2) == 0 ? 1 : -1;
+        float randomVariationY = (float) (Math.random() * variationY) * direction;
+        return BASE_GROUND_Y + randomVariationY;
+    }
 
-        monsters.add(new Zombie((float) (Math.random() * level * LEVEL_LENGTH) + 70f + spreadX, BASE_GROUND_Y + negOrPosSpreadY));
-        monsters.add(new Zombie((float) (Math.random() * level * LEVEL_LENGTH) + 70f + spreadX, BASE_GROUND_Y + negOrPosSpreadY));
-        monsters.add(new Zombie((float) (Math.random() * level * LEVEL_LENGTH) + 70f + spreadX, BASE_GROUND_Y + negOrPosSpreadY));
-        monsters.add(new Zombie((float) (Math.random() * level * LEVEL_LENGTH) + 70f + spreadX, BASE_GROUND_Y + negOrPosSpreadY));
-        monsters.add(new Zombie((float) (Math.random() * level * LEVEL_LENGTH) + 70f + spreadX, BASE_GROUND_Y + negOrPosSpreadY));
-        monsters.add(new Zombie((float) (Math.random() * level * LEVEL_LENGTH) + 70f + spreadX, BASE_GROUND_Y + negOrPosSpreadY));
+    private float getMonsterSpawnPointXAtLevel(float variationX) {
+        float randomVariationX = (float) (Math.random() * variationX);
+        return MONSTER_MIN_SPAWN_POINT_X + randomVariationX + (level - 1) * LEVEL_LENGTH;
     }
 
     private void applyGravity() {
         if (player.getRect().y > BASE_GROUND_Y) {
-            player.getRect().setY(player.getRect().y - GRAVITY * 200 * Gdx.graphics.getDeltaTime());
+            player.getRect().setY(player.getRect().y - GRAVITY * 200 * Gdx.graphics.getDeltaTime() * speedMultiplier);
         } else {
             player.getRect().setY(BASE_GROUND_Y);
         }
@@ -221,15 +227,18 @@ public class GameScreen implements Screen {
             }
         }
 
-
         player.render(game);
 
         applyGravity();
 
-        // next level?
+        // next level
         if (player.getWalkX() >= level * LEVEL_LENGTH) {
             loadLevel();
         }
+
+        Cat cat = cats.get(0);
+        cat.update(this);
+        cat.render(game, this);
     }
 
     @Override
@@ -268,6 +277,10 @@ public class GameScreen implements Screen {
 
     public List<Item> getItems() {
         return items;
+    }
+
+    public int getLevel() {
+        return level;
     }
 
 }

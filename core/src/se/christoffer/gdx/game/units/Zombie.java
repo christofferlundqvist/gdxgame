@@ -41,9 +41,10 @@ public class Zombie extends Monster {
 
     private Rectangle attackHitBox;
 
+    // TODO make an object out of this
     static {
-        itemDrops.put("Coin", 100f);
-        itemDrops.put("HPPotion", 100f);
+        itemDrops.put("Coin", 1000f);
+        itemDrops.put("HPPotion", 333f);
     }
 
     public Zombie(float x, float y) {
@@ -92,7 +93,8 @@ public class Zombie extends Monster {
 
     @Override
     public void onDeath(final GameScreen gameScreen) {
-        ItemUtil.dropItems(gameScreen, itemDrops, rect.x + 24, rect.y + 12);
+        super.onDeath(gameScreen);
+        ItemUtil.dropItems(gameScreen, itemDrops, rect.x + 32, rect.y + 12);
     }
 
     private void updateDead() {
@@ -134,10 +136,10 @@ public class Zombie extends Monster {
         walkTimer = SpriteUtil.updateSpriteTimer(walkTimer, walkSprites);
 
         if (rect.x >= player.getRect().x + player.getRect().width / 2 + walkX) {
-            rect.x -= WALK_SPEED * Gdx.graphics.getDeltaTime();
+            rect.x -= WALK_SPEED * Gdx.graphics.getDeltaTime() * GameScreen.speedMultiplier;
             direction = Direction.LEFT;
         } else if (rect.x < player.getRect().x - player.getRect().width / 2 + walkX) {
-            rect.x += WALK_SPEED * Gdx.graphics.getDeltaTime();
+            rect.x += WALK_SPEED * Gdx.graphics.getDeltaTime() * GameScreen.speedMultiplier;
             direction = Direction.RIGHT;
         }
     }

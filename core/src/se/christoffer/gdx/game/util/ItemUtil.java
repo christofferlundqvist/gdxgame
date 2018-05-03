@@ -13,9 +13,11 @@ public class ItemUtil {
 
     public static void dropItems(GameScreen gameScreen, Map<String, Float> itemDrops, float x, float y) {
         for (Map.Entry<String, Float> entry : itemDrops.entrySet()) {
-            if ((int) (Math.random() * 100) <= entry.getValue()) {
+
+            int random = (int) (Math.random() * 1000);
+            if (random <= entry.getValue()) {
                 if (entry.getKey().equals("Coin")) {
-                    gameScreen.addItem(new Coin(x, y));
+                    gameScreen.addItem(new Coin(x, y, gameScreen.getLevel(), gameScreen.getLevel() * 3));
                 }
                 if (entry.getKey().equals("HPPotion")) {
                     gameScreen.addItem(new HPPotion(x, y));

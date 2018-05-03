@@ -6,6 +6,7 @@ import com.badlogic.gdx.math.Rectangle;
 
 import se.christoffer.gdx.game.GameScreen;
 import se.christoffer.gdx.game.player.Player;
+import se.christoffer.gdx.game.util.MathUtil;
 import se.christoffer.gdx.game.util.SpriteUtil;
 
 /**
@@ -15,8 +16,12 @@ public class Coin extends Item {
 
     public static final String ITEM_NAME = "Coin";
     private static Texture[] sprites;
-    private static final int WIDTH = 24;
-    private static final int HEIGHT = 24;
+    private static final int WIDTH = 32;
+    private static final int HEIGHT = 32;
+
+    private int value;
+    private int minValue;
+    private int maxValue;
 
     static {
         sprites = new Texture[10];
@@ -32,15 +37,22 @@ public class Coin extends Item {
         sprites[9] = new Texture(Gdx.files.internal("coin/coin-10.png"));
     }
 
-    public Coin(final float x, final float y) {
+    public Coin(final float x, final float y, final int minValue, final int maxValue) {
         this.rect = new Rectangle(x, y, WIDTH, HEIGHT);
         this.name = ITEM_NAME;
         currentImage = sprites[0];
+        this.minValue = minValue;
+        this.maxValue = maxValue;
+        value = MathUtil.randomBetween(minValue, maxValue);
     }
 
     public void update(GameScreen gameScreen, final Player player, final float walkX) {
         currentImage = SpriteUtil.getCurrentSprite(spriteTimer, sprites, SpriteUtil.SPRITE_TICK_INTERVAL_DEFAULT);
         spriteTimer = SpriteUtil.updateSpriteTimer(spriteTimer, sprites, SpriteUtil.SPRITE_TICK_INTERVAL_DEFAULT);
+    }
+
+    public float getValue() {
+        return value;
     }
 
 }

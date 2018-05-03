@@ -50,7 +50,6 @@ public class Monster {
         }
 
         if (currentHp <= 0 && !isDead()) {
-            player.gainExperience(experienceGain);
             rect.y -= 10;
             state = State.DEAD;
             onDeath(gameScreen);
@@ -62,7 +61,7 @@ public class Monster {
     }
 
     public void onDeath(final GameScreen gameScreen) {
-
+        gameScreen.getPlayer().gainExperience(experienceGain);
     }
 
     public Rectangle getRect() {

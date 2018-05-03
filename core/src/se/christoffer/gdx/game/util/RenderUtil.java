@@ -15,7 +15,7 @@ public class RenderUtil {
         game.shapeRenderer.setColor(Color.BLACK);
         game.shapeRenderer.rect(x, y, width, DEFAULT_HEALTH_BAR_HEIGHT);
 
-        float percentageRed = currentHp / maxHp;
+        float percentageRed = Math.max(currentHp, 0) / maxHp;
         game.shapeRenderer.setColor(Color.SCARLET);
 
         game.shapeRenderer.rect(x, y, width * percentageRed, DEFAULT_HEALTH_BAR_HEIGHT);
