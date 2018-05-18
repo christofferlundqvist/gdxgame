@@ -70,8 +70,12 @@ public class Player {
     private boolean ballIsJumping = false;
     private float jumpTimer = 0;
 
+    private int level = 1;
     private long gold = 0;
     private long experience = 0;
+    private long experienceInCurrentLevel = 0;
+    private long experiencePerLevel = 100;
+    private float experienceMultiplier = 1f;
 
     public Player(final float x, final float y) {
         rect = new Rectangle(x, y, WIDTH, HEIGHT);
@@ -273,6 +277,10 @@ public class Player {
         return currentHp;
     }
 
+    public int getLevel() {
+        return level;
+    }
+
     private void startJump() {
         jumpTimer = 0;
         ballIsJumping = true;
@@ -335,7 +343,16 @@ public class Player {
     }
 
     public void gainExperience(long experience) {
-        this.experience += experience;
+        long addedExperience = (long) (experience * experienceMultiplier);
+
+        this.experienceInCurrentLevel += addedExperience;
+
+        if (experienceInCurrentLevel >= experiencePerLevel) {
+            experienceInCurrentLevel = experienceInCurrentLevel - experiencePerLevel;
+            level++;
+        }
+
+        this.experience += addedExperience;
     }
 
     public long getWalkX() {
